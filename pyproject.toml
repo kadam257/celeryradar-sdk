@@ -9,7 +9,7 @@ description = "Celery monitoring SDK — task events, worker heartbeats, beat sc
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "Kasey Steinhauer", email = "kstein257@celeryradar.com" }]
+authors = [{ name = "Kasey Steinhauer", email = "kasey@celeryradar.com" }]
 keywords = ["celery", "monitoring", "observability", "tasks", "beat"]
 classifiers = [
     "Development Status :: 4 - Beta",
