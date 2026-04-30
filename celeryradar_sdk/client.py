@@ -73,6 +73,9 @@ class Client:
     def __init__(self, api_key, endpoint='https://api.celeryradar.com',
                  max_queue_size=DEFAULT_QUEUE_SIZE,
                  retry_queue_size=DEFAULT_RETRY_QUEUE_SIZE, transport=None):
+        # Treat explicit None as "use default" so the common
+        # connect(endpoint=os.environ.get('...')) pattern doesn't crash.
+        endpoint = endpoint or 'https://api.celeryradar.com'
         self.api_key = api_key
         self.ingest_url = endpoint.rstrip('/') + '/ingest/'
         self._max_queue_size = max_queue_size

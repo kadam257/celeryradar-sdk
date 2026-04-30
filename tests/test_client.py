@@ -336,5 +336,17 @@ class HTTPPoolTests(unittest.TestCase):
         self.assertFalse(pool._is_https)
 
 
+class EndpointDefaultTests(unittest.TestCase):
+    """endpoint=None must fall through to the default — common in customer code
+    that does connect(endpoint=os.environ.get('...'))."""
+
+    def test_explicit_none_uses_default(self):
+        client = Client('cr_test', endpoint=None, transport=lambda b, h: 200)
+        try:
+            self.assertEqual(client.ingest_url, 'https://api.celeryradar.com/ingest/')
+        finally:
+            client.stop()
+
+
 if __name__ == '__main__':
     unittest.main()
