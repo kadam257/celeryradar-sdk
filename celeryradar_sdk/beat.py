@@ -140,10 +140,10 @@ def _enumerate_entries(scheduler):
 def _normalize_entry(name, entry):
     s = entry.schedule
     if isinstance(s, crontab):
-        expr = ' '.join([
+        expr = ' '.join(str(f) for f in (
             s._orig_minute, s._orig_hour, s._orig_day_of_month,
             s._orig_month_of_year, s._orig_day_of_week,
-        ])
+        ))
         return {'entry_name': name, 'task_name': entry.task,
                 'schedule_type': 'cron', 'schedule_expr': expr}
     if isinstance(s, schedule):
