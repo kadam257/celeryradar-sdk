@@ -15,7 +15,7 @@ queue depth.
 - **Task events** — start, success, failure, retry, runtime, exception type
 - **Worker heartbeats** — online/offline detection per worker hostname
 - **Beat schedules** — fires, misses, and drift from the expected interval
-- **Queue depth** — Redis broker depth per queue (cluster supported; RabbitMQ and SQS planned)
+- **Queue depth** — Redis broker depth per queue (single-instance only; RabbitMQ, SQS, and Redis Cluster planned)
 
 ## Install
 
