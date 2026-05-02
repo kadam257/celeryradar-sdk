@@ -28,6 +28,7 @@ _poller = None
 _poller_pid = None  # owning pid — fork-safety: child rebuilds Poller + Redis conn
 _poller_config = None
 _worker_name_override = None
+_app_name = None
 
 
 def _worker_name():
@@ -39,9 +40,16 @@ def _worker_name():
     return os.environ.get('CELERYRADAR_WORKER_NAME') or _worker_name_override or socket.gethostname()
 
 
-def connect(api_key, endpoint='https://api.celeryradar.com', broker_url=None,
+def connect(api_key, app_name, endpoint='https://api.celeryradar.com', broker_url=None,
             capture_args=True, worker_name=None):
     """Wire CeleryRadar's signal handlers and start the queue depth poller.
+
+    app_name identifies this Celery application within your account. Required.
+    If you run multiple Celery apps under one API key — even on separate Redis
+    brokers — give each a distinct app_name. Used to scope the broker-side
+    leader-election lock and to disambiguate queue-name collisions in the
+    dashboard (two apps that both have a queue called `celery` are kept
+    separate by app_name).
 
     Idempotent — a second call is a no-op with a warning. Reconnecting with a
     different api_key or endpoint isn't supported; restart the process instead.
@@ -63,7 +71,9 @@ def connect(api_key, endpoint='https://api.celeryradar.com', broker_url=None,
     the dashboard on every deploy. The CELERYRADAR_WORKER_NAME env var takes
     precedence over this argument.
     """
-    global _client, _poller_config, _capture_args, _worker_name_override
+    global _client, _poller_config, _capture_args, _worker_name_override, _app_name
+    if not isinstance(app_name, str) or not app_name.strip():
+        raise ValueError('app_name must be a non-empty string')
     if _client is not None:
         logger.warning('celeryradar_sdk.connect() called more than once; ignoring repeat call')
         return
@@ -71,6 +81,7 @@ def connect(api_key, endpoint='https://api.celeryradar.com', broker_url=None,
     _poller_config = (broker_url,)
     _capture_args = capture_args
     _worker_name_override = worker_name
+    _app_name = app_name.strip()
     task_prerun.connect(_on_prerun)
     task_postrun.connect(_on_postrun)
     task_failure.connect(_on_failure)
@@ -104,7 +115,7 @@ def _start_poller(*args, **kwargs):
         if not broker_url:
             return
         redis_conn = queues_mod.connect_redis(broker_url)
-        _poller = Poller(_client, current_app, redis_conn)
+        _poller = Poller(_client, current_app, redis_conn, _app_name)
         _poller_pid = pid
         _poller.start()
     except Exception as e:

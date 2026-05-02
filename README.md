@@ -32,12 +32,18 @@ Sign up at [celeryradar.com](https://celeryradar.com) to get your API key, then:
 ```python
 import celeryradar_sdk
 
-celeryradar_sdk.connect(api_key="cr_...")
+celeryradar_sdk.connect(api_key="cr_...", app_name="myapp")
 ```
 
 That's it. The SDK is async and non-blocking — if the ingest endpoint is slow
 or unreachable, your workers don't notice; events drop with a warning rather
 than back up your task queue.
+
+`app_name` is required. If you run multiple Celery apps under one API key —
+even on separate Redis brokers — give each a distinct `app_name`. It scopes
+the queue-depth poller's broker-side leader lock and disambiguates colliding
+queue names in the dashboard (two apps that both have a queue called `celery`
+stay separate by app).
 
 ## Configuration
 
@@ -46,6 +52,7 @@ Common options:
 ```python
 celeryradar_sdk.connect(
     api_key="cr_...",
+    app_name="myapp",
     capture_args=False,         # don't send task args/kwargs (default True)
     worker_name="api-worker-1", # override hostname; useful in k8s/Docker
     broker_url="redis://...",   # override app.conf.broker_url for the depth poller
