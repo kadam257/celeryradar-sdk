@@ -16,7 +16,7 @@ from .poller import Poller
 logger = logging.getLogger(__name__)
 
 _client = None
-_task_state = {}  # task_id -> {'start': float, 'args': list, 'kwargs': dict}
+_task_state = {}  # task_id -> {'start': monotonic_float, 'args': list, 'kwargs': dict}
 _last_heartbeat_sent = 0.0
 HEARTBEAT_INTERVAL = 30.0
 
@@ -27,6 +27,7 @@ _capture_args = True
 _poller = None
 _poller_pid = None  # owning pid — fork-safety: child rebuilds Poller + Redis conn
 _poller_config = None
+_poller_start_warned = False
 _worker_name_override = None
 _app_name = None
 
@@ -100,7 +101,7 @@ def connect(api_key, app_name, endpoint='https://api.celeryradar.com', broker_ur
 
 
 def _start_poller(*args, **kwargs):
-    global _poller, _poller_pid
+    global _poller, _poller_pid, _poller_start_warned
     pid = os.getpid()
     # PID compare detects fork: the child inherits the parent's _poller
     # reference but the parent's thread didn't survive fork and the parent's
@@ -119,13 +120,15 @@ def _start_poller(*args, **kwargs):
         _poller_pid = pid
         _poller.start()
     except Exception as e:
-        logger.debug('celeryradar: poller start skipped: %s', e)
+        if not _poller_start_warned:
+            _poller_start_warned = True
+            logger.warning('celeryradar: queue depth poller failed to start: %s', e)
 
 
 def _on_prerun(task_id, task, args=None, kwargs=None, **_):
     captured_args, captured_kwargs = _serialize_args(args, kwargs)
     _task_state[str(task_id)] = {
-        'start': time.time(),
+        'start': time.monotonic(),
         'args': captured_args,
         'kwargs': captured_kwargs,
     }
@@ -147,7 +150,7 @@ def _on_postrun(task_id, task, state, **kwargs):
         return
     stash = _task_state.pop(str(task_id), None)
     start = stash['start'] if stash else None
-    runtime = round(time.time() - start, 4) if start else None
+    runtime = round(time.monotonic() - start, 4) if start is not None else None
     _client.send({
         'type': 'task-succeeded',
         'task_id': str(task_id),

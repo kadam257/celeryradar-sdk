@@ -67,7 +67,7 @@ class ConnectAcceptsWorkerNameTests(unittest.TestCase):
         with patch.object(integration, '_start_poller'), \
              patch('celeryradar_sdk.integration.beat.install'), \
              patch('celeryradar_sdk.integration.task_prerun.connect'):
-            integration.connect(api_key='cr_test', endpoint='http://example.com',
+            integration.connect(api_key='cr_test', app_name='myapp', endpoint='http://example.com',
                                 worker_name='custom-worker')
         self.assertEqual(integration._worker_name_override, 'custom-worker')
 
@@ -75,7 +75,7 @@ class ConnectAcceptsWorkerNameTests(unittest.TestCase):
         with patch.object(integration, '_start_poller'), \
              patch('celeryradar_sdk.integration.beat.install'), \
              patch('celeryradar_sdk.integration.task_prerun.connect'):
-            integration.connect(api_key='cr_test', endpoint='http://example.com')
+            integration.connect(api_key='cr_test', app_name='myapp', endpoint='http://example.com')
         self.assertIsNone(integration._worker_name_override)
 
 
