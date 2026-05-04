@@ -54,6 +54,7 @@ celeryradar_sdk.connect(
     api_key="cr_...",
     app_name="myapp",
     capture_args=False,         # don't send task args/kwargs (default True)
+    capture_exceptions=False,   # don't send exception/traceback text (default True)
     worker_name="api-worker-1", # override hostname; useful in k8s/Docker
     broker_url="redis://...",   # override app.conf.broker_url for the depth poller
 )
@@ -76,6 +77,11 @@ history, alerts, dashboards, and trend analysis. They don't conflict.
 - [How the SDK works](https://celeryradar.com/docs/how-it-works/) — async ingest, retry queue, fork safety
 - [What gets monitored](https://celeryradar.com/docs/monitoring/) — signals and detection
 - [Troubleshooting](https://celeryradar.com/docs/troubleshooting/) — common issues and fixes
+
+Background reading: [Monitoring Celery in production](https://celeryradar.com/guides/monitoring-celery-in-production/)
+walks through what to watch, what Celery gives you out of the box, and how the
+common options (Flower, Prometheus + Grafana, Sentry, Datadog) compare.
+
 
 ## License
 

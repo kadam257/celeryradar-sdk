@@ -24,6 +24,7 @@ HEARTBEAT_INTERVAL = 30.0
 ARGS_PAYLOAD_MAX_BYTES = 4096
 
 _capture_args = True
+_capture_exceptions = True
 _poller = None
 _poller_pid = None  # owning pid — fork-safety: child rebuilds Poller + Redis conn
 _poller_config = None
@@ -42,7 +43,7 @@ def _worker_name():
 
 
 def connect(api_key, app_name, endpoint='https://api.celeryradar.com', broker_url=None,
-            capture_args=True, worker_name=None):
+            capture_args=True, capture_exceptions=True, worker_name=None):
     """Wire CeleryRadar's signal handlers and start the queue depth poller.
 
     app_name identifies this Celery application within your account. Required.
@@ -66,13 +67,20 @@ def connect(api_key, app_name, endpoint='https://api.celeryradar.com', broker_ur
     (default True). Useful when args may contain PII or secrets — server still
     receives task name, state, runtime, and exception info.
 
+    Pass capture_exceptions=False to disable sending exception text and
+    tracebacks on failure/retry events (default True). Useful when exception
+    messages may include user input (e.g. "ValueError: invalid email
+    jane@acme.com"), DB errors with interpolated SQL params, or stack frames
+    that leak codebase shape. The dashboard still records that the task
+    failed — it just won't show the exception or traceback details.
+
     Pass worker_name= to override the hostname reported to ingest. Useful in
     Kubernetes / Docker where socket.gethostname() returns an ephemeral pod or
     container ID and rolling restarts otherwise produce a new "worker" row in
     the dashboard on every deploy. The CELERYRADAR_WORKER_NAME env var takes
     precedence over this argument.
     """
-    global _client, _poller_config, _capture_args, _worker_name_override, _app_name
+    global _client, _poller_config, _capture_args, _capture_exceptions, _worker_name_override, _app_name
     if not isinstance(app_name, str) or not app_name.strip():
         raise ValueError('app_name must be a non-empty string')
     if _client is not None:
@@ -81,6 +89,7 @@ def connect(api_key, app_name, endpoint='https://api.celeryradar.com', broker_ur
     _client = Client(api_key, endpoint)
     _poller_config = (broker_url,)
     _capture_args = capture_args
+    _capture_exceptions = capture_exceptions
     _worker_name_override = worker_name
     _app_name = app_name.strip()
     task_prerun.connect(_on_prerun)
@@ -172,8 +181,8 @@ def _on_failure(task_id, exception, traceback, einfo, *args, **kwargs):
         'task_id': str(task_id),
         'task_name': sender.name if sender else '',
         'worker': _worker_name(),
-        'exception': repr(exception),
-        'traceback': str(einfo),
+        'exception': repr(exception) if _capture_exceptions else '',
+        'traceback': str(einfo) if _capture_exceptions else '',
         'args': stash['args'] if stash else [],
         'kwargs': stash['kwargs'] if stash else {},
         'retries': _retries(sender),
@@ -191,8 +200,8 @@ def _on_retry(request, reason, einfo, *args, **kwargs):
         'task_id': str(request.id),
         'task_name': request.task,
         'worker': _worker_name(),
-        'exception': str(reason),
-        'traceback': str(einfo),
+        'exception': str(reason) if _capture_exceptions else '',
+        'traceback': str(einfo) if _capture_exceptions else '',
         'retries': request.retries,
         'args': stash['args'] if stash else [],
         'kwargs': stash['kwargs'] if stash else {},
